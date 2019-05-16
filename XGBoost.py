@@ -10,7 +10,6 @@ dataset = loadtxt('pima-indians-diabetes.csv', delimiter=",")
 X = dataset[:, 0:8]
 Y = dataset[:, 8]
 
-asda = 1
 # 把数据集拆分成训练集和测试集
 seed = 7
 test_size = 0.33
