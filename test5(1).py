@@ -2,23 +2,44 @@ import statsmodels.api as sm
 import pandas as pd
 import statsmodels.formula.api as smf
 import math
+from sklearn.model_selection import train_test_split
 
 
 record_keys = ['age', 'female', 'creatinine', 'year']
 
 def initial(file):
-    data = pd.read_csv('E:\\flchain.csv')
+    data = pd.read_csv(file)
     del data["chapter"]
     data = data.dropna()
     data["lam"] = data["lambda"]
     data["female"] = (data["sex"] == "F").astype(int)
     data["year"] = data["sample.yr"] - min(data["sample.yr"])
     print(data.head())
-    status = data["death"].values
+    print("最开始的数量：", len(data))
+
+    # 切分为训练集和测试集
+    titleList = data.columns.values.tolist()
+    print(titleList)
+    x_keys = ['age', 'female', 'creatinine', 'year', 'death', 'futime']
+    y_keys = ['age']
+    for a in titleList:
+        if a not in x_keys:
+            del data[a]
+    print(data.head())
+    X = data[x_keys]
+    Y = data[y_keys]
+    seed = 7
+    test_size = 0.4
+    trainData, testData, ab, cd = train_test_split(X, Y, test_size=test_size, random_state=seed)
+
+    print("切分后训练集data：", len(trainData))
+    print("切分后测试集data：", len(testData))
+
+    status = trainData["death"].values
 
     mod = smf.phreg("futime ~ age + female + creatinine + "
                     "  + year",
-                    data, status=status, ties="efron")
+                    trainData, status=status, ties="efron")
     rslt = mod.fit()
     print(rslt.summary())
     # 得到h(t|X)=h0(t)exp(X^T*B)的协变量参数B
@@ -28,7 +49,7 @@ def initial(file):
         params[record_keys[i]] = rslt.params[i]
         i = i + 1
     print(params)
-    return data, params
+    return trainData, testData, params
 
 
 
@@ -46,6 +67,10 @@ def getRecord(data):
         oneRecord['death'] = death
         record.setdefault(futime, []).append(oneRecord)
     print(record)
+    num = 0
+    for time in record:
+        num = num + len(record[time])
+    print("记录条数：", num)
     return record
 
 # 用Breslow法估计出基准生存函数S0(ti)
@@ -94,17 +119,19 @@ def  getEvaluation(record, testTime):
     for time in record:
         if time <= testTime:
             for value in record[time]:
-                if value['death'] is 1:
-                    smaller = smaller + 1
-                else:
+                if value['death'] is 0:
                     censor = censor + 1
-            number = number + len(record[time])
-        censor = censor + len(record[time])
+                else:
+                    smaller = smaller + 1
+        else:
+            censor = censor + len(record[time])
         number = number + len(record[time])
 
     print("死亡数：", smaller)
     print("删失数：", censor)
+    print("总数：", number)
     evaluation = smaller / number
+    print("评估值为：", evaluation)
     return evaluation
 
 # 测试，得到预测准确率
@@ -151,7 +178,7 @@ def predict(record, params, S0, evaluation, testTime):
             # 若小于测试时间，要与death字段比较，看是否为删失数据
             if time > matchtime:
                 real = 0
-            elif value['death'] is 0:
+            elif value['death'] is 0.0:
                 real = 0
             else:
                 real = 1
@@ -172,19 +199,20 @@ def predict(record, params, S0, evaluation, testTime):
           (deathmatch + notdeathmatch) / (deathmatch + notdeathmatch + testnotdeath_realdeath + testdeath_realnot))
 
 
-# initial(file) return data,params
+# initial(file) return trainData,testData,params
 # getRecord(data) return record
 # getS0(record, params) return S0
 # getEvaluation(record, testTime) return evaluation
 # predict(record, params, S0, evaluation, testTime)
 if __name__ == '__main__':
     file = "E:\\flchain.csv"
-    data, params = initial(file)
-    record = getRecord(data)
-    S0 = getS0(record, params)
+    trainData, testData, params = initial(file)
+    trainRecord = getRecord(trainData)
+    testRecord = getRecord(testData)
+    S0 = getS0(trainRecord, params)
 
     testTime = 4000
-    predict(record, params, S0, getEvaluation(record, testTime), testTime)
+    predict(testRecord, params, S0, getEvaluation(trainRecord, testTime), testTime)
 
 
 

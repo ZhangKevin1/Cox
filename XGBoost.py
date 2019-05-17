@@ -1,28 +1,44 @@
-import xgboost
-from numpy import loadtxt
-from xgboost import XGBClassifier
+# ================基于XGBoost原生接口的分类=============
+from sklearn.datasets import load_iris
+import xgboost as xgb
+from xgboost import plot_importance
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score   # 准确率
+# 加载样本数据集
+iris = load_iris()
+X,y = iris.data,iris.target
+print(X)
+print(y)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1234565) # 数据集分割
 
-# 载入数据集
-dataset = loadtxt('pima-indians-diabetes.csv', delimiter=",")
-# split data into X and y
-X = dataset[:, 0:8]
-Y = dataset[:, 8]
+# 算法参数
+params = {
+    'booster': 'gbtree',
+    'objective': 'multi:softmax',
+    'num_class': 3,
+    'gamma': 0.1,
+    'max_depth': 6,
+    'lambda': 2,
+    'subsample': 0.7,
+    'colsample_bytree': 0.7,
+    'min_child_weight': 3,
+    'silent': 1,
+    'eta': 0.1,
+    'seed': 1000,
+    'nthread': 4,
+}
 
-# 把数据集拆分成训练集和测试集
-seed = 7
-test_size = 0.33
-X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=test_size, random_state=seed)
+plst = params.items()
 
-# 拟合XGBoost模型
-model = XGBClassifier()
-model.fit(X_train, y_train)
 
-# 对测试集做预测
-y_pred = model.predict(X_test)
-predictions = [round(value) for value in y_pred]
+dtrain = xgb.DMatrix(X_train, y_train) # 生成数据集格式
+num_rounds = 500
+model = xgb.train(plst, dtrain, num_rounds) # xgboost模型训练
 
-# 评估预测结果
-accuracy = accuracy_score(y_test, predictions)
-print("Accuracy: %.2f%%" % (accuracy * 100.0))
+# 对测试集进行预测
+dtest = xgb.DMatrix(X_test)
+y_pred = model.predict(dtest)
+
+# 计算准确率
+accuracy = accuracy_score(y_test,y_pred)
+print("accuarcy: %.2f%%" % (accuracy*100.0))

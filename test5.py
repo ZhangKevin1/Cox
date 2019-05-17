@@ -14,6 +14,7 @@ data["lam"] = data["lambda"]
 data["female"] = (data["sex"] == "F").astype(int)
 data["year"] = data["sample.yr"] - min(data["sample.yr"])
 print(data.head())
+print(len(data))
 titleList = data.columns.values.tolist()
 print(titleList)
 record_keys = ['age', 'female', 'creatinine', 'year', 'death', 'futime']
@@ -34,7 +35,6 @@ X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=test_size, r
 # 拟合XGBoost模型
 model = XGBClassifier()
 model.fit(X_train, y_train.values.ravel())
-print(model.summary())
 
 # 对测试集做预测
 y_pred = model.predict(X_test)
