@@ -1,17 +1,19 @@
 import statsmodels.api as sm
 import pandas as pd
+import numpy as np
 import statsmodels.formula.api as smf
 import math
 from sklearn.model_selection import train_test_split
 
 
-record_keys = ['age', 'female', 'creatinine', 'year']
+record_keys = []
 
-def initial(file):
+def initial(file, x, y, state):
     data = pd.read_csv(file)
     del data["chapter"]
     data = data.dropna()
-    data["lam"] = data["lambda"]
+    data["sq_lam"] = data["lambda"].apply(np.sqrt)
+    data["sq_kappa"] = data["kappa"].apply(np.sqrt)
     data["female"] = (data["sex"] == "F").astype(int)
     data["year"] = data["sample.yr"] - min(data["sample.yr"])
     print(data.head())
@@ -20,8 +22,12 @@ def initial(file):
     # 切分为训练集和测试集
     titleList = data.columns.values.tolist()
     print(titleList)
-    x_keys = ['age', 'female', 'creatinine', 'year', 'death', 'futime']
-    y_keys = ['age']
+    x_keys = []
+    for key in x:
+        x_keys.append(key)
+    x_keys.append(y)
+    x_keys.append(state)
+    y_keys = []
     for a in titleList:
         if a not in x_keys:
             del data[a]
@@ -29,7 +35,7 @@ def initial(file):
     X = data[x_keys]
     Y = data[y_keys]
     seed = 7
-    test_size = 0.4
+    test_size = 0.1
     trainData, testData, ab, cd = train_test_split(X, Y, test_size=test_size, random_state=seed)
 
     print("切分后训练集data：", len(trainData))
@@ -37,9 +43,21 @@ def initial(file):
 
     status = trainData["death"].values
 
-    mod = smf.phreg("futime ~ age + female + creatinine + "
-                    "  + year",
-                    trainData, status=status, ties="efron")
+    sentence = y + "~"
+    count = 0
+    for key in record_keys:
+        if count == 0:
+            sentence = sentence + key
+        else:
+            sentence = sentence + "+" + key
+        count = count + 1
+    print(sentence)
+
+    # mod = smf.phreg("futime ~ age + female + creatinine + "
+    #                 "  + year",
+    #                 trainData, status=status, ties="efron")
+
+    mod = smf.phreg(sentence, trainData, status=status, ties="efron")
     rslt = mod.fit()
     print(rslt.summary())
     # 得到h(t|X)=h0(t)exp(X^T*B)的协变量参数B
@@ -132,20 +150,22 @@ def  getEvaluation(record, testTime):
     print("总数：", number)
     evaluation = smaller / number
     print("评估值为：", evaluation)
-    return evaluation
+
+    # 获得与预测时间最相近的训练集时刻
+    matchtime = 0
+    for time in record:
+        if matchtime < time <= testTime:
+            matchtime = time
+    return evaluation, matchtime
 
 # 测试，得到预测准确率
-def predict(record, params, S0, evaluation, testTime):
+def predict(record, params, S0, evaluation, matchtime):
     deathmatch = 0
     notdeathmatch = 0
     testdeath_realnot = 0
     testnotdeath_realdeath = 0
-    matchtime = 0
 
     # 取得测试时间下的基准生存率
-    for time in record:
-        if matchtime < time <= testTime:
-            matchtime = time
     S0Test = S0[matchtime]
 
     print("matchTime为：", matchtime)
@@ -154,9 +174,9 @@ def predict(record, params, S0, evaluation, testTime):
     largerMatchTimeNum = 0
     for time in record:
         if time < matchtime:
-            smallerMatchTimeNum = smallerMatchTimeNum + 1
+            smallerMatchTimeNum = smallerMatchTimeNum + len(record[time])
         else:
-            largerMatchTimeNum = largerMatchTimeNum + 1
+            largerMatchTimeNum = largerMatchTimeNum + len(record[time])
     print("小于预测时间的数量：", smallerMatchTimeNum)
     print("大于预测时间的数量：", largerMatchTimeNum)
 
@@ -206,13 +226,18 @@ def predict(record, params, S0, evaluation, testTime):
 # predict(record, params, S0, evaluation, testTime)
 if __name__ == '__main__':
     file = "E:\\flchain.csv"
-    trainData, testData, params = initial(file)
+    x = ['age', 'female', 'creatinine', 'sq_kappa', 'sq_lam', 'year']
+    record_keys = x
+    y = 'futime'
+    state = 'death'
+    trainData, testData, params = initial(file, x, y, state)
     trainRecord = getRecord(trainData)
     testRecord = getRecord(testData)
     S0 = getS0(trainRecord, params)
 
     testTime = 4000
-    predict(testRecord, params, S0, getEvaluation(trainRecord, testTime), testTime)
+    evaluation, matchTime = getEvaluation(trainRecord, testTime)
+    predict(testRecord, params, S0, evaluation, matchTime)
 
 
 
