@@ -12,12 +12,8 @@ record_keys = []
 
 def initial(file, x, y, state):
     data = pd.read_csv(file)
-    del data["chapter"]
     data = data.dropna()
-    data["sq_lam"] = data["lambda"].apply(np.sqrt)
-    data["sq_kappa"] = data["kappa"].apply(np.sqrt)
-    data["female"] = (data["sex"] == "F").astype(int)
-    data["year"] = data["sample.yr"] - min(data["sample.yr"])
+    data["death"] = data["status"] - 1
     print(data.head())
     print("最开始的数量：", len(data))
 
@@ -37,13 +33,13 @@ def initial(file, x, y, state):
     X = data[x_keys]
     Y = data[y_keys]
     seed = 7
-    test_size = 0.6
+    test_size = 0.4
     trainData, testData, ab, cd = train_test_split(X, Y, test_size=test_size, random_state=seed)
 
     print("切分后训练集data：", len(trainData))
     print("切分后测试集data：", len(testData))
 
-    status = trainData["death"].values
+    status = trainData[state].values
 
     sentence = y + "~"
     count = 0
@@ -196,7 +192,7 @@ def predict(record, params, S0, evaluation, matchtime):
             S = math.pow(S0Test, b)
             # 将实际值与预测生存率分别存入列表
             TrueList.append(value['death'])
-            Predictlist.append(1-S)
+            Predictlist.append(S)
 
             # 生存率小于等于评估值，则预测为流失，否则为生存
             if S <= evaluation:
@@ -231,6 +227,7 @@ def predict(record, params, S0, evaluation, matchtime):
     fpr, tpr, thresholds = metrics.roc_curve(TrueList, Predictlist, pos_label=1)
     roc_auc = metrics.auc(fpr, tpr)
     print(roc_auc)
+    print(Predictlist)
 
     plt.plot(fpr, tpr, 'b', label='AUC = %0.2f' % roc_auc)
     plt.legend(loc='lower right')
@@ -246,22 +243,22 @@ def predict(record, params, S0, evaluation, matchtime):
 
 
 # initial(file) return trainData,testData,params
-# getRecord(data, y, state) return record
+# getRecord(data) return record
 # getS0(record, params) return S0
 # getEvaluation(record, testTime) return evaluation
 # predict(record, params, S0, evaluation, testTime)
 if __name__ == '__main__':
-    file = "E:\\flchain.csv"
-    x = ['age', 'female', 'creatinine', 'sq_kappa', 'sq_lam', 'year']
+    file = "E:\\lung.csv"
+    x = ['age', 'sex', "ph_karno", "ph_ecog", "wt_loss"]
     record_keys = x
-    y = 'futime'
+    y = 'time'
     state = 'death'
     trainData, testData, params = initial(file, x, y, state)
     trainRecord = getRecord(trainData, y, state)
     testRecord = getRecord(testData, y, state)
     S0 = getS0(trainRecord, params)
 
-    testTime = 4000
+    testTime = 500
     evaluation, matchTime = getEvaluation(trainRecord, testTime)
     predict(testRecord, params, S0, evaluation, matchTime)
 
