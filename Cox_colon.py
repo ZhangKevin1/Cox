@@ -13,7 +13,6 @@ record_keys = []
 def initial(file, x, y, state):
     data = pd.read_csv(file)
     data = data.dropna()
-    data["death"] = data["status"] - 1
     print(data.head())
     print("最开始的数量：", len(data))
 
@@ -248,17 +247,17 @@ def predict(record, params, S0, evaluation, matchtime):
 # getEvaluation(record, testTime) return evaluation
 # predict(record, params, S0, evaluation, testTime)
 if __name__ == '__main__':
-    file = "E:\\lung.csv"
-    x = ['age', 'sex', "ph_karno", "ph_ecog", "wt_loss"]
+    file = "E:\\colon.csv"
+    x = ['age', 'sex', "obstruct", "perfor", "nodes", "differ", "extent", "surg"]
     record_keys = x
     y = 'time'
-    state = 'death'
+    state = 'status'
     trainData, testData, params = initial(file, x, y, state)
     trainRecord = getRecord(trainData, y, state)
     testRecord = getRecord(testData, y, state)
     S0 = getS0(trainRecord, params)
 
-    testTime = 450
+    testTime = 1000
     evaluation, matchTime = getEvaluation(trainRecord, testTime)
     predict(testRecord, params, S0, evaluation, matchTime)
 

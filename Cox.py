@@ -37,7 +37,7 @@ def initial(file, x, y, state):
     X = data[x_keys]
     Y = data[y_keys]
     seed = 7
-    test_size = 0.6
+    test_size = 0.4
     trainData, testData, ab, cd = train_test_split(X, Y, test_size=test_size, random_state=seed)
 
     print("切分后训练集data：", len(trainData))
@@ -252,7 +252,7 @@ def predict(record, params, S0, evaluation, matchtime):
 # predict(record, params, S0, evaluation, testTime)
 if __name__ == '__main__':
     file = "E:\\flchain.csv"
-    x = ['age', 'female', 'creatinine', 'sq_kappa', 'sq_lam', 'year']
+    x = ['creatinine', 'sq_kappa', 'sq_lam', 'year']
     record_keys = x
     y = 'futime'
     state = 'death'
