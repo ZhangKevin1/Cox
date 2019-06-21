@@ -21,21 +21,18 @@ record_keys = []
 def initial(file, x, y, state):
     data = pd.read_csv(file)
     data = data.dropna()
+    data["gender"] = (data["gender"] == "Male").astype(int)
     data["Partner"] = (data["Partner"] == "Yes").astype(int)
     data["Dependents"] = (data["Dependents"] == "Yes").astype(int)
     data["PhoneService"] = (data["PhoneService"] == "Yes").astype(int)
     data["MultipleLines"] = data['MultipleLines'].map({'No phone service': 0, 'No': 1, 'Yes': 2})
     data["InternetService"] = data['InternetService'].map({'No': 0, 'DSL': 1, 'Fiber optic': 2})
-    data["OnlineSecurity"] = data['OnlineSecurity'].map({'No internet service': 0, 'No': 1, 'Yes': 2})
-    data["OnlineBackup"] = data['OnlineBackup'].map({'No internet service': 0, 'No': 1, 'Yes': 2})
-    data["DeviceProtection"] = data['DeviceProtection'].map({'No internet service': 0, 'No': 1, 'Yes': 2})
     data["TechSupport"] = data['TechSupport'].map({'No internet service': 0, 'No': 1, 'Yes': 2})
     data["StreamingTV"] = data['StreamingTV'].map({'No internet service': 0, 'No': 1, 'Yes': 2})
-    data["StreamingMovies"] = data['StreamingMovies'].map({'No internet service': 0, 'No': 1, 'Yes': 2})
-    data["Contract"] = data['Contract'].map({'Two year': 0, 'One year': 1, 'Month-to-month': 2})
+    data["Contract"] = data['Contract'].map({'Month-to-month': 0, 'One year': 1, 'Two year': 2})
     data["PaperlessBilling"] = (data["PaperlessBilling"] == "Yes").astype(int)
     data["PaymentMethod"] = data['PaymentMethod'].map({'Electronic check': 0, 'Mailed check': 1, 'Bank transfer (automatic)': 2, 'Credit card (automatic)': 3})
-    data["death"] = (data["Churn"] == "Yes").astype(int)
+    data["Churn"] = (data["Churn"] == "Yes").astype(int)
     print(data.head())
     print("最开始的数量：", len(data))
 
@@ -61,7 +58,7 @@ def initial(file, x, y, state):
     print("切分后训练集data：", len(trainData))
     print("切分后测试集data：", len(testData))
 
-    status = trainData["death"].values
+    status = trainData[state].values
 
     sentence = y + "~"
     count = 0
@@ -102,7 +99,7 @@ def getRecord(data, y, state):
         death = row[state]
         for x in record_keys:
             oneRecord[x] = row[x]
-        oneRecord['death'] = death
+        oneRecord[state] = death
         record.setdefault(futime, []).append(oneRecord)
     print(record)
     num = 0
@@ -113,13 +110,13 @@ def getRecord(data, y, state):
 
 # 用Breslow法估计出基准生存函数S0(ti)
 # h0为基准风险函数，H0为基准累积风险函数，S0为基准生存率
-def getS0(record, params):
+def getS0(record, params, state):
     h0 = {}
     H0 = {}
     for time in record:
         a = len(record[time])
         for value in record[time]:
-            if value['death'] is 0:
+            if value[state] is 0:
                 a = a - 1
         sumb = 0
         for time2 in record:
@@ -127,7 +124,7 @@ def getS0(record, params):
                 for value in record[time2]:
                     temp = 0
                     for x in value:
-                        if x is not 'death':
+                        if x is not state:
                             temp = temp + value[x] * params[x]
                     b = math.exp(temp)
                     sumb = sumb + b
@@ -150,14 +147,14 @@ def getS0(record, params):
 
 
 # 获取评估值
-def  getEvaluation(record, testTime):
+def  getEvaluation(record, state, testTime):
     smaller = 0
     censor = 0
     number = 0
     for time in record:
         if time <= testTime:
             for value in record[time]:
-                if value['death'] is 0:
+                if value[state] is 0:
                     censor = censor + 1
                 else:
                     smaller = smaller + 1
@@ -179,7 +176,7 @@ def  getEvaluation(record, testTime):
     return evaluation, matchtime
 
 # 测试，得到预测准确率
-def predict(record, params, S0, evaluation, matchtime):
+def predict(record, params, state, S0, evaluation, matchtime):
     deathmatch = 0
     notdeathmatch = 0
     testdeath_realnot = 0
@@ -208,12 +205,12 @@ def predict(record, params, S0, evaluation, matchtime):
         for value in record[time]:
             temp = 0
             for x in value:
-                if x is not 'death':
+                if x is not state:
                     temp = temp + value[x] * params[x]
             b = math.exp(temp)
             S = math.pow(S0Test, b)
             # 将实际值与预测生存率分别存入列表
-            TrueList.append(value['death'])
+            TrueList.append(value[state])
             Predictlist.append(1-S)
 
             # 生存率小于等于评估值，则预测为流失，否则为生存
@@ -225,7 +222,7 @@ def predict(record, params, S0, evaluation, matchtime):
             # 若小于测试时间，要与death字段比较，看是否为删失数据
             if time > matchtime:
                 real = 0
-            elif value['death'] is 0.0:
+            elif value[state] is 0.0:
                 real = 0
             else:
                 real = 1
@@ -275,15 +272,15 @@ if __name__ == '__main__':
          'Contract', 'PaperlessBilling', 'PaymentMethod', 'MonthlyCharges']
     record_keys = x
     y = 'tenure'
-    state = 'death'
+    state = 'Churn'
     trainData, testData, params = initial(file, x, y, state)
     trainRecord = getRecord(trainData, y, state)
     testRecord = getRecord(testData, y, state)
-    S0 = getS0(trainRecord, params)
+    S0 = getS0(trainRecord, params, state)
 
     testTime = 50
-    evaluation, matchTime = getEvaluation(trainRecord, testTime)
-    predict(testRecord, params, S0, evaluation, matchTime)
+    evaluation, matchTime = getEvaluation(trainRecord, state, testTime)
+    predict(testRecord, params, state, S0, evaluation, matchTime)
 
 
 
