@@ -96,7 +96,6 @@ def getRecord(data, y, state, id):
             oneRecord[x] = row[x]
         oneRecord[state] = death
         record.setdefault(futime, []).append(oneRecord)
-    print(record)
     num = 0
     for time in record:
         num = num + len(record[time])
@@ -142,39 +141,49 @@ def getS0(record, params, state, id):
 
 
 # 测试，得到预测准确率
-def predict(record, params, state, id, S0, testTime):
-    # 获得与预测时间最相近的训练集时刻
-    matchtime = 0
-    for time in record:
-        if matchtime < time <= testTime:
-            matchtime = time
+def predict(record, params, state, id, S0):
+    # 在训练集中是否存在与预测时间相同时刻，是为1，否为0
+    # match = 0
+    # for time in record:
+    #     if matchtime < time <= testTime:
+    #         matchtime = time
 
-    # 取得测试时间下的基准生存率
-    S0Test = S0[matchtime]
-    print("matchTime为：", matchtime)
-
-    # 计算每条数据的生存率
+    # 计算每条数据的生存率，match为在训练集中是否存在与预测时间相同时刻，若为0，则不对该条数据进行预测
     for time in record:
+        match = 0
+        for time2 in S0:
+            if time == time2:
+                match = 1
+                S01value = S0[time]
         for value in record[time]:
-            temp = 0
-            for x in value:
-                if x not in [state, id]:
-                    temp = temp + value[x] * params[x]
-            b = math.exp(temp)
-            S = math.pow(S0Test, b)
-            value['S'] = S
+            if match == 1:
+                temp = 0
+                for x in value:
+                    if x not in [state, id]:
+                        temp = temp + value[x] * params[x]
+                b = math.exp(temp)
+                S = math.pow(S01value, b)
+                value['S'] = S
+                if time == 34:
+                    print(str(time)+ ":"+ str(S01value) + ":" + str(S))
+            else:
+                value['S'] = 'Not Match Time'
+
 
     #输出结果保存到文件中
     outputFile = 'E:\\output.txt'
     with open(outputFile, 'w') as f:
         f.write(id + '\t')
         f.write(state + '\t')
+        f.write('time' + '\t')
         f.write('Survival Rate\n')
         for time in record:
             for value in record[time]:
                 f.write(str(value[id]))
                 f.write('\t')
                 f.write(str(value[state]))
+                f.write('\t')
+                f.write(str(time))
                 f.write('\t')
                 f.write(str(value['S']))
                 f.write('\n')
@@ -206,8 +215,9 @@ if __name__ == '__main__':
     testRecord = getRecord(testData, y, state, id)
     S0 = getS0(trainRecord, params, state, id)
 
-    testTime = 50
-    predict(testRecord, params, state, id, S0, testTime)
+    # testTime = 50
+    print("节点一"+str(S0[34]))
+    predict(testRecord, params, state, id, S0)
 
 
 
