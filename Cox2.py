@@ -9,7 +9,7 @@ import matplotlib.pylab as plt
 record_keys = []
 
 
-def initial(file, x, y, state):
+def initial(file, x, y, state, id):
     data = pd.read_csv(file)
     data = data.dropna()
     data["gender"] = (data["gender"] == "Male").astype(int)
@@ -35,6 +35,7 @@ def initial(file, x, y, state):
         x_keys.append(key)
     x_keys.append(y)
     x_keys.append(state)
+    x_keys.append(id)
     y_keys = []
     for a in titleList:
         if a not in x_keys:
@@ -82,12 +83,15 @@ def initial(file, x, y, state):
 
 # 将data数据存入list record中
 # 构建存活时间与其他值的键值对
-def getRecord(data, y, state):
+
+def getRecord(data, y, state, id):
     record = {}
     for index, row in data.iterrows():
         oneRecord = {}
+        Rid = row[id]
         futime = row[y]
         death = row[state]
+        oneRecord[id] = Rid
         for x in record_keys:
             oneRecord[x] = row[x]
         oneRecord[state] = death
@@ -101,7 +105,7 @@ def getRecord(data, y, state):
 
 # 用Breslow法估计出基准生存函数S0(ti)
 # h0为基准风险函数，H0为基准累积风险函数，S0为基准生存率
-def getS0(record, params, state):
+def getS0(record, params, state, id):
     h0 = {}
     H0 = {}
     for time in record:
@@ -115,7 +119,7 @@ def getS0(record, params, state):
                 for value in record[time2]:
                     temp = 0
                     for x in value:
-                        if x is not state:
+                        if x not in [state, id]:
                             temp = temp + value[x] * params[x]
                     b = math.exp(temp)
                     sumb = sumb + b
@@ -137,116 +141,48 @@ def getS0(record, params, state):
     return S0
 
 
-# 获取评估值
-def  getEvaluation(record, state, testTime):
-    smaller = 0
-    censor = 0
-    number = 0
-    for time in record:
-        if time <= testTime:
-            for value in record[time]:
-                if value[state] is 0:
-                    censor = censor + 1
-                else:
-                    smaller = smaller + 1
-        else:
-            censor = censor + len(record[time])
-        number = number + len(record[time])
-
-    print("死亡数：", smaller)
-    print("删失数：", censor)
-    print("总数：", number)
-    evaluation = smaller / number
-    print("评估值为：", evaluation)
-
+# 测试，得到预测准确率
+def predict(record, params, state, id, S0, testTime):
     # 获得与预测时间最相近的训练集时刻
     matchtime = 0
     for time in record:
         if matchtime < time <= testTime:
             matchtime = time
-    return evaluation, matchtime
-
-# 测试，得到预测准确率
-def predict(record, params, state, S0, evaluation, matchtime):
-    deathmatch = 0
-    notdeathmatch = 0
-    testdeath_realnot = 0
-    testnotdeath_realdeath = 0
-
-    TrueList = []
-    Predictlist = []
 
     # 取得测试时间下的基准生存率
     S0Test = S0[matchtime]
-
     print("matchTime为：", matchtime)
 
-    smallerMatchTimeNum = 0
-    largerMatchTimeNum = 0
-    for time in record:
-        if time < matchtime:
-            smallerMatchTimeNum = smallerMatchTimeNum + len(record[time])
-        else:
-            largerMatchTimeNum = largerMatchTimeNum + len(record[time])
-    print("小于预测时间的数量：", smallerMatchTimeNum)
-    print("大于预测时间的数量：", largerMatchTimeNum)
-
-    # 计算每条数据的生存率，与评估值对比，预测是否发生流失
+    # 计算每条数据的生存率
     for time in record:
         for value in record[time]:
             temp = 0
             for x in value:
-                if x is not state:
+                if x not in [state, id]:
                     temp = temp + value[x] * params[x]
             b = math.exp(temp)
             S = math.pow(S0Test, b)
-            # 将实际值与预测生存率分别存入列表
-            TrueList.append(value[state])
-            Predictlist.append(1-S)
+            value['S'] = S
 
-            # 生存率小于等于评估值，则预测为流失，否则为生存
-            if S <= evaluation:
-                predict = 1
-            else:
-                predict = 0
-            # 若该条数据的时间大于测试时间，则说明该数据实际存活
-            # 若小于测试时间，要与death字段比较，看是否为删失数据
-            if time > matchtime:
-                real = 0
-            elif value[state] is 0.0:
-                real = 0
-            else:
-                real = 1
-            if predict is 1 and real is 1:
-                deathmatch = deathmatch + 1
-            elif predict is 1 and real is 0:
-                testdeath_realnot = testdeath_realnot + 1
-            elif predict is 0 and real is 1:
-                testnotdeath_realdeath = testnotdeath_realdeath + 1
-            else:
-                notdeathmatch = notdeathmatch + 1
+    #输出结果保存到文件中
+    outputFile = 'E:\\output.txt'
+    with open(outputFile, 'w') as f:
+        f.write(id + '\t')
+        f.write(state + '\t')
+        f.write('Survival Rate\n')
+        for time in record:
+            for value in record[time]:
+                f.write(str(value[id]))
+                f.write('\t')
+                f.write(str(value[state]))
+                f.write('\t')
+                f.write(str(value['S']))
+                f.write('\n')
 
-    print("流失匹配：", deathmatch)
-    print("非流失匹配：", notdeathmatch)
-    print("预测流失实际非流失：", testdeath_realnot)
-    print("预测非流失实际流失：", testnotdeath_realdeath)
-    print("预测准确率：",
-          (deathmatch + notdeathmatch) / (deathmatch + notdeathmatch + testnotdeath_realdeath + testdeath_realnot))
+    print("结果输出至文件：" + outputFile)
 
-    # 绘制Roc曲线
-    fpr, tpr, thresholds = metrics.roc_curve(TrueList, Predictlist, pos_label=1)
-    roc_auc = metrics.auc(fpr, tpr)
-    print(roc_auc)
 
-    plt.plot(fpr, tpr, 'b', label='AUC = %0.2f' % roc_auc)
-    plt.legend(loc='lower right')
-    # plt.plot([0, 1], [0, 1], 'r--')
-    plt.xlim([-0.1, 1.1])
-    plt.ylim([-0.1, 1.1])
-    plt.xlabel('False Positive Rate')  # 横坐标是fpr
-    plt.ylabel('True Positive Rate')  # 纵坐标是tpr
-    plt.title('Receiver operating characteristic example')
-    plt.show()
+
 
 
 
@@ -264,14 +200,14 @@ if __name__ == '__main__':
     record_keys = x
     y = 'tenure'
     state = 'Churn'
-    trainData, testData, params = initial(file, x, y, state)
-    trainRecord = getRecord(trainData, y, state)
-    testRecord = getRecord(testData, y, state)
-    S0 = getS0(trainRecord, params, state)
+    id = 'customerID'
+    trainData, testData, params = initial(file, x, y, state, id)
+    trainRecord = getRecord(trainData, y, state, id)
+    testRecord = getRecord(testData, y, state, id)
+    S0 = getS0(trainRecord, params, state, id)
 
     testTime = 50
-    evaluation, matchTime = getEvaluation(trainRecord, state, testTime)
-    predict(testRecord, params, state, S0, evaluation, matchTime)
+    predict(testRecord, params, state, id, S0, testTime)
 
 
 

@@ -14,8 +14,9 @@ def initial(file, x, y, state):
     data = pd.read_csv(file)
     del data["chapter"]
     data = data.dropna()
-    data["sq_lam"] = data["lambda"].apply(np.sqrt)
-    data["sq_kappa"] = data["kappa"].apply(np.sqrt)
+    # data["sq_lam"] = data["lambda"].apply(np.sqrt)
+    # data["sq_kappa"] = data["kappa"].apply(np.sqrt)
+    data["sq_lam"] = data["lambda"]
     data["female"] = (data["sex"] == "F").astype(int)
     data["year"] = data["sample.yr"] - min(data["sample.yr"])
     print(data.head())
@@ -252,7 +253,7 @@ def predict(record, params, S0, evaluation, matchtime):
 # predict(record, params, S0, evaluation, testTime)
 if __name__ == '__main__':
     file = "E:\\flchain.csv"
-    x = ['creatinine', 'sq_kappa', 'sq_lam', 'year']
+    x = ['age', 'female', 'creatinine', 'kappa', 'sq_lam', 'year']
     record_keys = x
     y = 'futime'
     state = 'death'
