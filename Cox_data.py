@@ -145,7 +145,7 @@ def  getEvaluation(record, state, testTime):
     for time in record:
         if time <= testTime:
             for value in record[time]:
-                if value[state] is 0:
+                if int(value[state]) is 0:
                     censor = censor + 1
                 else:
                     smaller = smaller + 1
@@ -156,7 +156,7 @@ def  getEvaluation(record, state, testTime):
     print("死亡数：", smaller)
     print("删失数：", censor)
     print("总数：", number)
-    evaluation = smaller / number
+    evaluation = censor / number
     print("评估值为：", evaluation)
 
     # 获得与预测时间最相近的训练集时刻
@@ -213,7 +213,7 @@ def predict(record, params, state, S0, evaluation, matchtime):
             # 若小于测试时间，要与death字段比较，看是否为删失数据
             if time > matchtime:
                 real = 0
-            elif value[state] is 0.0:
+            elif int(value[state]) is 0:
                 real = 0
             else:
                 real = 1

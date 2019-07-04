@@ -108,7 +108,7 @@ def getS0(record, params, state):
     for time in record:
         a = len(record[time])
         for value in record[time]:
-            if value[state] is 0:
+            if int(value[state]) is 0:
                 a = a - 1
         sumb = 0
         for time2 in record:

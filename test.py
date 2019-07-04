@@ -88,9 +88,9 @@ def getRecord(data, y, state):
         oneRecord = {}
         futime = row[y]
         death = row[state]
+        oneRecord[state] = death
         for x in record_keys:
             oneRecord[x] = row[x]
-        oneRecord[state] = death
         record.setdefault(futime, []).append(oneRecord)
     print(record)
     num = 0
@@ -106,8 +106,11 @@ def getS0(record, params, state):
     H0 = {}
     for time in record:
         a = len(record[time])
+        if time == 34:
+            print(a)
+            print(record[time])
         for value in record[time]:
-            if value[state] is 0:
+            if int(value[state]) is 0:
                 a = a - 1
         sumb = 0
         for time2 in record:
@@ -120,6 +123,9 @@ def getS0(record, params, state):
                     b = math.exp(temp)
                     sumb = sumb + b
         h0[time] = a / sumb
+        if time == 34:
+            print(a)
+            print(sumb)
     print(h0)
     for time in h0:
         temp = 0
@@ -145,7 +151,7 @@ def  getEvaluation(record, state, testTime):
     for time in record:
         if time <= testTime:
             for value in record[time]:
-                if value[state] is 0:
+                if int(value[state]) is 0:
                     censor = censor + 1
                 else:
                     smaller = smaller + 1
@@ -178,7 +184,6 @@ def predict(record, params, state, S0, evaluation, matchtime):
 
     # 取得测试时间下的基准生存率
     S0Test = S0[matchtime]
-    print(S0Test)
 
     print("matchTime为：", matchtime)
 
@@ -210,11 +215,13 @@ def predict(record, params, state, S0, evaluation, matchtime):
                 predict = 1
             else:
                 predict = 0
+            if time == 34:
+                print(str(int(value[state])) + "," + str(S) + ',' + str(predict))
             # 若该条数据的时间大于测试时间，则说明该数据实际存活
             # 若小于测试时间，要与death字段比较，看是否为删失数据
             if time > matchtime:
                 real = 0
-            elif value[state] is 0.0:
+            elif int(value[state]) is 0:
                 real = 0
             else:
                 real = 1
@@ -269,6 +276,7 @@ if __name__ == '__main__':
     trainRecord = getRecord(trainData, y, state)
     testRecord = getRecord(testData, y, state)
     S0 = getS0(trainRecord, params, state)
+    print(S0[34])
 
     testTime = 34
     evaluation, matchTime = getEvaluation(trainRecord, state, testTime)

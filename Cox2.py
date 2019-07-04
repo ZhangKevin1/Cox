@@ -88,14 +88,14 @@ def getRecord(data, y, state, id):
     record = {}
     for index, row in data.iterrows():
         oneRecord = {}
-        Rid = row[id]
         futime = row[y]
         death = row[state]
-        oneRecord[id] = Rid
+        oneRecord[id] = row[id]
+        oneRecord[state] = death
         for x in record_keys:
             oneRecord[x] = row[x]
-        oneRecord[state] = death
         record.setdefault(futime, []).append(oneRecord)
+    print(record)
     num = 0
     for time in record:
         num = num + len(record[time])
@@ -110,7 +110,7 @@ def getS0(record, params, state, id):
     for time in record:
         a = len(record[time])
         for value in record[time]:
-            if value[state] is 0:
+            if int(value[state]) is 0:
                 a = a - 1
         sumb = 0
         for time2 in record:
@@ -164,8 +164,6 @@ def predict(record, params, state, id, S0):
                 b = math.exp(temp)
                 S = math.pow(S01value, b)
                 value['S'] = S
-                if time == 34:
-                    print(str(time)+ ":"+ str(S01value) + ":" + str(S))
             else:
                 value['S'] = 'Not Match Time'
 
@@ -215,8 +213,6 @@ if __name__ == '__main__':
     testRecord = getRecord(testData, y, state, id)
     S0 = getS0(trainRecord, params, state, id)
 
-    # testTime = 50
-    print("节点一"+str(S0[34]))
     predict(testRecord, params, state, id, S0)
 
 
